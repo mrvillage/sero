@@ -27,6 +27,23 @@ use std::{
 
 use dashmap::{mapref::entry::Entry, DashMap};
 
+/// A LockStore for sharing and managing a set of locks.
+///
+/// To lock a specific key with the store use `LockStore::lock(key)`, any subsequent calls for that key will remain locked until the current holder is released (the returned LockGuard is dropped).
+/// When there are no longer any guards (when nothing is locking the lock) and there are no waiters left (no subsequent calls are waiting for the lock) then the lock will be placed into an unused locks queue and reused for a different key in the future.
+///
+/// To configure the number of locks kept in the queue, the `LockStore` can be created with `LockStore::with_custom_unused_locks`. The default value for `LockStore::new()` is 100 locks.
+///
+/// # Example
+/// ```
+/// use sero::LockStore;
+///
+/// let store = LockStore::with_custom_unused_locks(1000);
+/// let waiter = store.lock("test");
+/// let guard = waiter.wait();
+/// // the lock is released here
+/// drop(guard);
+/// ```
 #[derive(Clone, Debug)]
 pub struct LockStore<K>
 where
@@ -153,6 +170,17 @@ where
     }
 }
 
+/// A `LockWaiter` represents a waiter waiting to access a lock on a key.
+///
+/// The `LockWaiter` can be consumed synchronously using `LockWaiter::wait` (which will park the current thread until it is available) or asynchronously through `.await`.
+///
+/// # Example:
+/// ```
+/// let waiter = store.lock("test");
+/// let guard = waiter.wait();
+/// // OR
+/// let guard = waiter.await;
+/// ```
 #[derive(Clone, Debug)]
 pub struct LockWaiter<K>
 where
@@ -235,6 +263,16 @@ where
     }
 }
 
+/// Represents a hold on a specific lock.
+///
+/// The lock will be released and can be reacquired when the `LockGuard` is dropped.
+///
+/// # Example
+/// ```
+/// let guard = store.lock("test").wait();
+/// // the lock is released here
+/// drop(guard);
+/// ```
 #[derive(Debug)]
 pub struct LockGuard<K>
 where
@@ -258,6 +296,14 @@ impl<K> Drop for LockGuard<K>
 where
     K: std::hash::Hash + Eq + Clone + Send + Sync + 'static,
 {
+    /// Drops the `LockGuard` and releases the lock, allowing the next waiter to acquire it.
+    ///
+    /// # Example
+    /// ```
+    /// let guard = store.lock("test").wait()
+    /// // drops the guard
+    /// drop(guard);
+    /// ```
     fn drop(&mut self) {
         {
             let lock = self.store.locks.get(&self.key).unwrap();
