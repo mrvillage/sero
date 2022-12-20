@@ -22,11 +22,32 @@ impl<K> LockStore<K>
 where
     K: std::hash::Hash + Eq + Clone + Send + Sync + 'static,
 {
+    /// Create a new LockStore.
+    ///
+    /// # Example
+    /// ```
+    /// use sero::LockStore;
+    ///
+    /// let store = LockStore::new();
+    ///
+    /// let guard = store.lock("test").wait();
+    /// ```
     #[inline(always)]
     pub fn new() -> Self {
         Self::with_custom_unused_locks(100)
     }
 
+    /// Provide a custom number of unused locks to keep in the internal queue rather than recreating locks.
+    ///
+    /// The default value when this function is not used is 100 locks.
+    ///
+    /// # Example
+    /// ```
+    /// use sero::LockStore;
+    ///
+    /// // now the store will keep up to 1000 unused locks in the queue to prevent reallocating them.
+    /// let store = LockStore::with_custom_unused_locks(1000);
+    /// ```
     #[inline(always)]
     pub fn with_custom_unused_locks(keep_unused_locks: usize) -> Self {
         Self {
@@ -36,6 +57,20 @@ where
         }
     }
 
+    /// Lock a specific key and get the relevant LockWaiter.
+    /// To actually acquire the lock either use the wait() method to lock synchronously or .await to lock asynchronously.
+    ///
+    /// # Example
+    /// ```
+    /// // acquire a lock
+    /// let guard = store.lock("test").wait();
+    ///
+    /// // to acquire the lock asynchronously use
+    /// let guard = store.lock("test").await;
+    ///
+    /// // the lock is released here
+    /// drop(guard);
+    /// ```
     pub fn lock(&self, key: K) -> LockWaiter<K> {
         let lock = {
             let entry = self.locks.entry(key.clone());
@@ -66,11 +101,11 @@ where
 }
 
 #[derive(Clone, Debug)]
-pub struct Lock<K>
+struct Lock<K>
 where
     K: std::hash::Hash + Eq + Clone + Send + Sync + 'static,
 {
-    pub state: Arc<Mutex<(bool, VecDeque<LockWaiter<K>>)>>,
+    state: Arc<Mutex<(bool, VecDeque<LockWaiter<K>>)>>,
     store: LockStore<K>,
 }
 
@@ -79,14 +114,14 @@ where
     K: std::hash::Hash + Eq + Clone + Send + Sync + 'static,
 {
     #[inline(always)]
-    pub fn new(store: LockStore<K>) -> Self {
+    pub(crate) fn new(store: LockStore<K>) -> Self {
         Self {
             state: Arc::new(Mutex::new((false, VecDeque::new()))),
             store,
         }
     }
 
-    pub fn lock(&self, key: K) -> LockWaiter<K> {
+    pub(crate) fn lock(&self, key: K) -> LockWaiter<K> {
         let mut state = self.state.lock().unwrap();
         let waiter = LockWaiter::new(self.store.clone(), key);
         state.1.push_back(waiter.clone());
@@ -123,7 +158,7 @@ where
         }
     }
 
-    pub fn wake(&self) {
+    pub(crate) fn wake(&self) {
         let mut state = self.state.lock().unwrap();
         state.0 = true;
         if let Some(waker) = state.1.take() {
@@ -134,6 +169,13 @@ where
         }
     }
 
+    /// Wait for the lock to be available and acquire a guard, when the guard is dropped the lock is released and can be acquired again
+    /// **Note:** Calling this method will park the current thread, this may cause issues, especially in an asynchronous context, and cause a deadlock.
+    ///
+    /// # Example
+    /// ```
+    /// let waiter = store.lock("test");
+    /// let guard = waiter.wait();
     pub fn wait(self) -> LockGuard<K>
     where
         K: std::hash::Hash + Eq + Clone + Send + Sync + 'static,
@@ -188,7 +230,7 @@ where
     K: std::hash::Hash + Eq + Clone + Send + Sync + 'static,
 {
     #[inline(always)]
-    pub fn new(store: LockStore<K>, key: K) -> Self {
+    pub(crate) fn new(store: LockStore<K>, key: K) -> Self {
         Self { store, key }
     }
 }
