@@ -1,4 +1,4 @@
-# Sero
+# sero
 
 Sero is a simple and lightweight library for maintaining a shared store of locks.
 
