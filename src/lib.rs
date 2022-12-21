@@ -82,7 +82,7 @@ where
     /// use sero::LockStore;
     ///
     /// // now the store will keep up to 1000 unused locks in the queue to prevent reallocating them.
-    /// let store = LockStore::with_custom_unused_locks(1000);
+    /// let store: LockStore<String> = LockStore::with_custom_unused_locks(1000);
     /// ```
     #[inline(always)]
     pub fn with_custom_unused_locks(keep_unused_locks: usize) -> Self {
@@ -98,6 +98,7 @@ where
     ///
     /// # Example
     /// ```
+    /// let store = LockStore::new();
     /// // acquire a lock
     /// let guard = store.lock("test").wait();
     ///
