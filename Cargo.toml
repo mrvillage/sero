@@ -1,6 +1,6 @@
 [package]
 name = "sero"
-version = "0.1.7"
+version = "0.1.8"
 edition = "2021"
 description = "A simple and lightweight library for maintaining a shared store of locks."
 license = "MIT"
