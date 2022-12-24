@@ -10,7 +10,6 @@ on:
 
 env:
   BIN_NAME: cargo-release
-  IS_BINARY: true
 
 jobs:
   create-release:
@@ -45,7 +44,7 @@ jobs:
         release_name: ${{ env.RELEASE_VERSION }}
         body_path: notes-${{ env.RELEASE_VERSION }}.md
   build-release:
-    if: ${{ env.IS_BINARY }} == true
+    if: true
     name: build-release
     needs: create-release
     strategy:
