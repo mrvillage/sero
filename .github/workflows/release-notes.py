@@ -1,6 +1,7 @@
-# Taken from https://github.com/crate-ci/cargo-release/blob/19a59b29d8864d1ce1c239c40e563dda1f46a7e9/.github/workflows/release-notes.py
-
 #!/usr/bin/env python3
+
+# Taken from https://github.com/crate-ci/cargo-release/blob/19a59b29d8864d1ce1c239c40e563dda1f46a7e9/.github/workflows/release-notes.py
+# See https://github.com/mrvillage/cargo-release-action for more info
 
 import argparse
 import pathlib
